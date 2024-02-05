@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package auth;
+
+
+service AuthService {
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse) {}
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool isValid = 1;
+  string username = 2; 
+  string role = 3;
+}
