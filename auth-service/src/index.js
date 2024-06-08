@@ -1,19 +1,62 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import express from 'express';
-import bodyParser from 'body-parser';
 import pool from './utils/db.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import config from './utils/config.js';
 
-const app = express();
-const PORT = 3000; // Puerto para las solicitudes REST
+const PROTO_PATH = 'auth.proto';
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {});
+const authProto = grpc.loadPackageDefinition(packageDefinition).auth;
 
-app.use(bodyParser.json());
+const SALT_ROUNDS = 10;
 
-app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
+const register = async (call, callback) => {
+    console.log('Received register request:', call.request);
+    const { username, password } = call.request;
+    try {
+        const userCheck = await pool.query(
+            'SELECT * FROM users WHERE username = $1',
+            [username]
+        );
+        if (userCheck.rows.length > 0) {
+            console.log('Username already exists');
+            callback(null, {
+                success: false,
+                error: 'Username already exists',
+            });
+            return;
+        }
+
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+        const role = 'client';
+        const dbRes = await pool.query(
+            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING *',
+            [username, hashedPassword, role]
+        );
+        if (dbRes.rows.length > 0) {
+            console.log('Registration successful');
+            callback(null, { success: true });
+        } else {
+            console.log('Failed to register the user');
+            callback(null, {
+                success: false,
+                error: 'Failed to register the user',
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        console.log('Failed to connect to the database');
+        callback(null, {
+            success: false,
+            error: 'Failed to connect to the database',
+        });
+    }
+};
+
+const login = async (call, callback) => {
+    console.log('Received login request:', call.request);
+    const { username, password } = call.request;
     try {
         const dbRes = await pool.query(
             'SELECT * FROM users WHERE username = $1',
@@ -24,53 +67,35 @@ app.post('/login', async (req, res) => {
             const role = user.role;
             const isMatch = await bcrypt.compare(password, user.password_hash);
             if (isMatch) {
+                console.log('Login successful');
                 const token = jwt.sign({ username, role }, config.jwt_secret, {
                     expiresIn: '24h',
                 });
-                res.json({ token });
+                callback(null, { token });
             } else {
-                res.status(401).json({ error: 'Invalid password' });
+                console.log('User or password incorrect');
+                callback(null, { error: 'User or password incorrect' });
             }
         } else {
-            res.status(404).json({ error: 'User not found' });
+            console.log('User or password incorrect');
+            callback(null, { error: 'User or password incorrect' });
         }
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: 'Failed to connect to the database' });
+        console.log('Failed to connect to the database');
+        callback(null, { error: 'Failed to connect to the database' });
     }
-});
-
-app.post('/register', async (req, res) => {
-    const { username, password } = req.body;
-    try {
-        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-        const role = 'client';
-        const dbRes = await pool.query(
-            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING *',
-            [username, hashedPassword, role]
-        );
-        if (dbRes.rows.length > 0) {
-            res.json({ success: true });
-        } else {
-            res.status(500).json({ error: 'Failed to register the user' });
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to connect to the database' });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`REST API listening on port ${PORT}`);
-});
+};
 
 const validateToken = (call, callback) => {
+    console.log('Received token validation request:', call.request);
     const { token } = call.request;
-
     jwt.verify(token, config.jwt_secret, (err, decoded) => {
         if (err) {
+            console.log('Token validation failed:', err);
             callback(null, { isValid: false });
         } else {
+            console.log('Token validated successfully');
             callback(null, {
                 isValid: true,
                 username: decoded.username,
@@ -80,13 +105,12 @@ const validateToken = (call, callback) => {
     });
 };
 
-const PROTO_PATH = 'auth.proto';
-const packageDefinition = protoLoader.loadSync(PROTO_PATH, {});
-const authService =
-    grpc.loadPackageDefinition(packageDefinition).auth.AuthService;
-
 const server = new grpc.Server();
-server.addService(authService.service, { validateToken });
+server.addService(authProto.AuthService.service, {
+    register,
+    login,
+    validateToken,
+});
 
 server.bindAsync(
     '0.0.0.0:4000',
@@ -96,7 +120,7 @@ server.bindAsync(
             console.error(error);
             return;
         }
-        console.log(`gRPC listening on port ${port}`);
+        console.log(`gRPC server listening on port ${port}`);
         server.start();
     }
 );

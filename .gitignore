@@ -133,3 +133,5 @@ dist
 # Testing Folder
 
 testing/
+
+secret.yml

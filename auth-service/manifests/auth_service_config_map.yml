@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: app-config
+data:
+    JWT_SECRET: 'drama'
+    DB_HOST: 'host.minikube.internal'
+    DB_PORT: '5432'
+    DB_DATABASE: 'postgres'
