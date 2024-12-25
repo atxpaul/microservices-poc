@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package catalog;
+
+service CatalogService {
+  rpc GetProduct(ProductRequest) returns (ProductResponse);
+  rpc GetProducts(EmptyRequest) returns (ProductsResponse);
+  rpc CreateProduct(ProductCreationRequest) returns (ProductResponse);
+}
+
+message ProductRequest {
+  string id = 1;
+}
+
+message ProductResponse {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message ProductsResponse {
+  repeated ProductResponse products = 1;
+}
+
+message ProductCreationRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message EmptyRequest {}

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: app-config
+data:
+    DATABASE_URI: 'mongodb://host.minikube.internal:27017'
+    DATABASE_NAME: 'catalog'
+    PORT: '50051'
