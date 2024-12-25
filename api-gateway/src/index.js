@@ -3,11 +3,20 @@ import bodyParser from 'body-parser';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 
-const PROTO_PATH = 'auth.proto';
-const packageDefinition = protoLoader.loadSync(PROTO_PATH, {});
+const AUTH_PROTO_PATH = 'auth.proto';
+const packageDefinition = protoLoader.loadSync(AUTH_PROTO_PATH, {});
 const authProto = grpc.loadPackageDefinition(packageDefinition).auth;
 const authClient = new authProto.AuthService(
     'auth-service.default.svc.cluster.local:4000',
+    grpc.credentials.createInsecure()
+);
+const CATALOG_PROTO_PATH = 'catalog.proto';
+const catalogPackageDefinition = protoLoader.loadSync(CATALOG_PROTO_PATH, {});
+const catalogProto = grpc.loadPackageDefinition(
+    catalogPackageDefinition
+).catalog;
+const catalogClient = new catalogProto.CatalogService(
+    'catalog-service.default.svc.cluster.local:50051',
     grpc.credentials.createInsecure()
 );
 
@@ -65,6 +74,54 @@ const authenticate = (req, res, next) => {
         }
     });
 };
+
+app.get('/catalog', authenticate, (req, res) => {
+    console.log('Catalog route accessed by:', req.user.username);
+    const catalogId = req.query.catalogId;
+
+    if (catalogId) {
+        catalogClient.GetProduct({ id: catalogId }, (err, response) => {
+            if (err) {
+                if (err.code === 5) {
+                    res.status(404).json({ error: 'Product not found' });
+                } else {
+                    console.error(
+                        'Error occurred during catalog retrieval:',
+                        err
+                    );
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            } else {
+                console.log('Catalog retrieved:', response);
+                res.json(response);
+            }
+        });
+    } else {
+        catalogClient.GetProducts({}, (err, response) => {
+            if (err) {
+                console.error('Error occurred during catalog retrieval:', err);
+                res.status(500).json({ error: 'Internal server error' });
+            } else {
+                console.log('Catalog retrieved:', response);
+                res.json(response.products);
+            }
+        });
+    }
+});
+
+app.post('/catalog', authenticate, (req, res) => {
+    console.log('Received create catalog request:', req.body);
+    const { name, description } = req.body;
+    catalogClient.CreateProduct({ name, description }, (err, response) => {
+        if (err) {
+            console.error('Error occurred during catalog creation:', err);
+            res.status(500).json({ error: 'Internal server error' });
+        } else {
+            console.log('Catalog created:', response);
+            res.json(response);
+        }
+    });
+});
 
 app.get('/protected', authenticate, (req, res) => {
     console.log('Protected route accessed by:', req.user.username);
