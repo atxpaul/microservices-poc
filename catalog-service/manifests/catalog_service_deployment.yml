@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
     name: catalog-service
 spec:
-    replicas: 1
+    replicas: 3
     selector:
         matchLabels:
             app: catalog-service
@@ -21,15 +21,15 @@ spec:
                       - name: DATABASE_URI
                         valueFrom:
                             configMapKeyRef:
-                                name: app-config
+                                name: catalog-config
                                 key: DATABASE_URI
                       - name: DATABASE_NAME
                         valueFrom:
                             configMapKeyRef:
-                                name: app-config
+                                name: catalog-config
                                 key: DATABASE_NAME
                       - name: PORT
                         valueFrom:
                             configMapKeyRef:
-                                name: app-config
+                                name: catalog-config
                                 key: PORT

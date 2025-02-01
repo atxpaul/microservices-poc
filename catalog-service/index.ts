@@ -81,12 +81,65 @@ const createProduct = async (call, callback) => {
   }
 };
 
+const deleteProduct = async (call, callback) => {
+  try {
+    const { id } = call.request;
+    const result = await db.collection('products').deleteOne({ _id: ObjectId.createFromHexString(id) });
+    if (result.deletedCount === 0) {
+      callback({
+        code: grpc.status.NOT_FOUND,
+        message: 'Product not found',
+      });
+      return;
+    }
+    callback(null, {});
+    console.log('Product deleted:', result);
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    callback({
+      code: grpc.status.INTERNAL,
+      message: 'Internal server error',
+    });
+  }
+};
+
+const updateProduct = async (call, callback) => {
+  try {
+    const { id, name, description } = call.request;
+    const result = await db.collection('products').updateOne(
+      { _id: ObjectId.createFromHexString(id) },
+      { $set: { name, description } }
+    );
+    if (result.matchedCount === 0) {
+      callback({
+        code: grpc.status.NOT_FOUND,
+        message: 'Product not found',
+      });
+      return;
+    }
+    const updatedProduct = await db.collection('products').findOne(
+      { _id: ObjectId.createFromHexString(id) },
+      { projection: { _id: 0, id: { $toString: "$_id" }, name: 1, description: 1 } }
+    );
+    callback(null, updatedProduct);
+    console.log('Product updated:', result);
+  } catch (err) {
+    console.error('Error updating product:', err);
+    callback({
+      code: grpc.status.INTERNAL,
+      message: 'Internal server error',
+    });
+  }
+};
+
 function startServer() {
   const server = new grpc.Server();
   server.addService(catalogProto.CatalogService.service, {
     GetProduct: getProduct,
     GetProducts: getProducts,
     CreateProduct: createProduct,
+    DeleteProduct: deleteProduct,
+    UpdateProduct: updateProduct,
   });
 
   const port = process.env.PORT || '50051';

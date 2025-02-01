@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-    name: app-config
+    name: catalog-config
 data:
     DATABASE_URI: 'mongodb://host.minikube.internal:27017'
     DATABASE_NAME: 'catalog'

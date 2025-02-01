@@ -123,6 +123,42 @@ app.post('/catalog', authenticate, (req, res) => {
     });
 });
 
+app.put('/catalog', authenticate, (req, res) => {
+    console.log('Received update catalog request:', req.body);
+    const { id, name, description } = req.body;
+    catalogClient.UpdateProduct({ id, name, description }, (err, response) => {
+        if (err) {
+            if (err.code === 5) {
+                res.status(404).json({ error: 'Product not found' });
+            } else {
+                console.error('Error occurred during catalog update:', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        } else {
+            console.log('Catalog updated:', response);
+            res.json(response);
+        }
+    });
+});
+
+app.delete('/catalog/:id', authenticate, (req, res) => {
+    console.log('Received delete catalog request:', req.params);
+    const { id } = req.params;
+    catalogClient.DeleteProduct({ id }, (err, response) => {
+        if (err) {
+            if (err.code === 5) {
+                res.status(404).json({ error: 'Product not found' });
+            } else {
+                console.error('Error occurred during catalog deletion:', err);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        } else {
+            console.log('Catalog deleted:', response);
+            res.json(response);
+        }
+    });
+});
+
 app.get('/protected', authenticate, (req, res) => {
     console.log('Protected route accessed by:', req.user.username);
     res.json({
