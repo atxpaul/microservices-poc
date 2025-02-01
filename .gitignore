@@ -135,3 +135,5 @@ dist
 testing/
 
 secret.yml
+
+apply.ps1

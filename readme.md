@@ -40,7 +40,7 @@ To run this project locally, you will need the following prerequisites:
 1. **Start Minikube**:
 
     ```sh
-    minikube start
+    minikube start --nodes=3 --driver=docker
     ```
 
 2. **Apply Kubernetes Manifests**:
@@ -52,8 +52,15 @@ To run this project locally, you will need the following prerequisites:
     ```
 
 3. **Enable Minikube Tunnel**:
+
     ```sh
     minikube tunnel
+    ```
+
+4. **Enable Ingress**:
+
+    ```sh
+    minikube addons enable ingress
     ```
 
 ## Testing the Microservices
