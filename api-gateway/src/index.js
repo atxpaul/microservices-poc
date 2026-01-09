@@ -2,6 +2,8 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import amqp from 'amqplib/callback_api';
+import multer from 'multer';
 
 const AUTH_PROTO_PATH = 'auth.proto';
 const packageDefinition = protoLoader.loadSync(AUTH_PROTO_PATH, {});
@@ -154,6 +156,40 @@ app.delete('/catalog/:id', authenticate, (req, res) => {
             }
         } else {
             console.log('Catalog deleted:', response);
+            res.json(response);
+        }
+    });
+});
+
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/upload', authenticate, upload.single('file'), (req, res) => {
+    console.log('Received file upload request:', req.file);
+
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileServiceClient = new grpc.loadPackageDefinition(
+        protoLoader.loadSync('file.proto', {})
+    ).file.FileService(
+        'file-service.default.svc.cluster.local:6000',
+        grpc.credentials.createInsecure()
+    );
+
+    const fileData = {
+        filename: req.file.originalname,
+        path: req.file.path,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+    };
+
+    fileServiceClient.uploadFile(fileData, (err, response) => {
+        if (err) {
+            console.error('Error occurred during file upload:', err);
+            res.status(500).json({ error: 'Internal server error' });
+        } else {
+            console.log('File uploaded successfully:', response);
             res.json(response);
         }
     });
