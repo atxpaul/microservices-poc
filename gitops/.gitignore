@@ -1,0 +1,14 @@
+# Archivos temporales
+*.tmp
+*.log
+
+# Archivos de entorno local
+.env
+.env.local
+
+# Archivos de IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
